@@ -46,6 +46,9 @@ export class History {
     this.cb = cb
   }
 
+  /**
+   * 添加 ready 回调函数（如果已经 ready，则立即调用，否则加入 readyCbs）
+   */
   onReady (cb: Function, errorCb: ?Function) {
     if (this.ready) {
       cb()
@@ -57,10 +60,16 @@ export class History {
     }
   }
 
+  /**
+   * 添加 error 回调函数
+   */
   onError (errorCb: Function) {
     this.errorCbs.push(errorCb)
   }
 
+  /**
+   * 跳转到某个路由
+   */
   transitionTo (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     const route = this.router.match(location, this.current)
     this.confirmTransition(route, () => {
@@ -84,6 +93,9 @@ export class History {
     })
   }
 
+  /**
+   * 确认是否可以跳转到新路由
+   */
   confirmTransition (route: Route, onComplete: Function, onAbort?: Function) {
     const current = this.current
     const abort = err => {
@@ -97,6 +109,8 @@ export class History {
       }
       onAbort && onAbort(err)
     }
+
+    // 路由相同，abort
     if (
       isSameRoute(route, current) &&
       // in the case the route map has been dynamically appended to
@@ -106,12 +120,19 @@ export class History {
       return abort()
     }
 
+    /**
+     * 获取
+     *   要更新的路由
+     *   要 activated 的路由
+     *   要 deactivated 的路由
+     */
     const {
       updated,
       deactivated,
       activated
     } = resolveQueue(this.current.matched, route.matched)
 
+    // 路由转换过程中，所有要执行的钩子函数
     const queue: Array<?NavigationGuard> = [].concat(
       // in-component leave guards
       extractLeaveGuards(deactivated),
@@ -125,6 +146,7 @@ export class History {
       resolveAsyncComponents(activated)
     )
 
+    // 正在等待跳转的路由
     this.pending = route
     const iterator = (hook: NavigationGuard, next) => {
       if (this.pending !== route) {
@@ -182,6 +204,9 @@ export class History {
     })
   }
 
+  /**
+   * 更新路由
+   */
   updateRoute (route: Route) {
     const prev = this.current
     this.current = route
@@ -192,6 +217,11 @@ export class History {
   }
 }
 
+/**
+ * 标准化 base 的格式
+ *   1、保证首部斜杠 /
+ *   2、移除尾斜杠 /
+ */
 function normalizeBase (base: ?string): string {
   if (!base) {
     if (inBrowser) {
@@ -212,9 +242,15 @@ function normalizeBase (base: ?string): string {
   return base.replace(/\/$/, '')
 }
 
+/**
+ * 解析路由队列，包括：
+ *   要更新的路由队列
+ *   要 activated 的路由队列
+ *   要 deactivated 的路由
+ */
 function resolveQueue (
-  current: Array<RouteRecord>,
-  next: Array<RouteRecord>
+  current: Array<RouteRecord>, // 当前路由
+  next: Array<RouteRecord> // 要跳转到的路由
 ): {
   updated: Array<RouteRecord>,
   activated: Array<RouteRecord>,
@@ -262,10 +298,12 @@ function extractGuard (
   return def.options[key]
 }
 
+// 提取 beforeRouteLeave 钩子函数
 function extractLeaveGuards (deactivated: Array<RouteRecord>): Array<?Function> {
   return extractGuards(deactivated, 'beforeRouteLeave', bindGuard, true)
 }
 
+// 提取 beforeRouteUpdate 钩子函数
 function extractUpdateHooks (updated: Array<RouteRecord>): Array<?Function> {
   return extractGuards(updated, 'beforeRouteUpdate', bindGuard)
 }
@@ -278,6 +316,7 @@ function bindGuard (guard: NavigationGuard, instance: ?_Vue): ?NavigationGuard {
   }
 }
 
+// 提取 beforeRouteEnter 钩子函数
 function extractEnterGuards (
   activated: Array<RouteRecord>,
   cbs: Array<Function>,

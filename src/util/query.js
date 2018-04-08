@@ -15,6 +15,12 @@ const encode = str => encodeURIComponent(str)
 
 const decode = decodeURIComponent
 
+/**
+ * 合并 query
+ * @param {String} query 查询参数字符串
+ * @param {Object} extraQuery 查询参数对象
+ * @param {Function} _parseQuery 解析查询参数字符串的函数
+ */
 export function resolveQuery (
   query: ?string,
   extraQuery: Dictionary<string> = {},
@@ -34,6 +40,10 @@ export function resolveQuery (
   return parsedQuery
 }
 
+/**
+ * 将查询参数字符串处理成对象
+ * @param {String} query 查询参数字符串
+ */
 function parseQuery (query: string): Dictionary<string> {
   const res = {}
 
@@ -51,10 +61,13 @@ function parseQuery (query: string): Dictionary<string> {
       : null
 
     if (res[key] === undefined) {
+      // value 不存在
       res[key] = val
     } else if (Array.isArray(res[key])) {
+      // value 是数组
       res[key].push(val)
     } else {
+      // value 已存在，合并成数组形式
       res[key] = [res[key], val]
     }
   })
@@ -62,6 +75,10 @@ function parseQuery (query: string): Dictionary<string> {
   return res
 }
 
+
+/**
+ * 将 query 对象格式化为字符串
+ */
 export function stringifyQuery (obj: Dictionary<string>): string {
   const res = obj ? Object.keys(obj).map(key => {
     const val = obj[key]

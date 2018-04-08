@@ -25,7 +25,7 @@ export function createRouteMap (
     addRouteRecord(pathList, pathMap, nameMap, route)
   })
 
-  // ensure wildcard routes are always at the end
+  // 将通配符 * 的路由放置到最后
   for (let i = 0, l = pathList.length; i < l; i++) {
     if (pathList[i] === '*') {
       pathList.push(pathList.splice(i, 1)[0])
@@ -41,6 +41,15 @@ export function createRouteMap (
   }
 }
 
+/**
+ * 添加路由记录
+ * @param {*} pathList 路由记录数组，元素是路由的 path
+ * @param {*} pathMap 以 path 为 key，路由记录为 value 的对象
+ * @param {*} nameMap 以 name 为 key，路由记录为 value 的对象
+ * @param {*} route 新增的路由配置对象，用户 new VueRouter 时传入的 routes 数组里的路由配置对象
+ * @param {*} parent 父路由
+ * @param {*} matchAs 若有个路由配置为 { path: '/a', component: A, alias: '/b' }，则在为 /b 创建一条新的路由记录时，该路由记录的 matchAs 值为 /a，意为作为 /a 匹配；只有作为别名路由才有该参数
+ */
 function addRouteRecord (
   pathList: Array<string>,
   pathMap: Dictionary<RouteRecord>,
@@ -51,7 +60,9 @@ function addRouteRecord (
 ) {
   const { path, name } = route
   if (process.env.NODE_ENV !== 'production') {
+    // path 必须存在
     assert(path != null, `"path" is required in a route configuration.`)
+    // component 不能是字符串
     assert(
       typeof route.component !== 'string',
       `route config "component" for path: ${String(path || name)} cannot be a ` +
@@ -59,7 +70,10 @@ function addRouteRecord (
     )
   }
 
+  // 编译正则的选项，可忽略
   const pathToRegexpOptions: PathToRegexpOptions = route.pathToRegexpOptions || {}
+
+  // 标准化后的 path，包括将父路由的 path 拼接到子路由的 path 上
   const normalizedPath = normalizePath(
     path,
     parent,
@@ -67,18 +81,20 @@ function addRouteRecord (
   )
 
   if (typeof route.caseSensitive === 'boolean') {
+    // 匹配规则是否大小写敏感
     pathToRegexpOptions.sensitive = route.caseSensitive
   }
 
+  // 路由记录，标准格式
   const record: RouteRecord = {
     path: normalizedPath,
     regex: compileRouteRegex(normalizedPath, pathToRegexpOptions),
     components: route.components || { default: route.component },
     instances: {},
     name,
-    parent,
+    parent, // 父路由记录
     matchAs,
-    redirect: route.redirect,
+    redirect: route.redirect, // 重定向的目标
     beforeEnter: route.beforeEnter,
     meta: route.meta || {},
     props: route.props == null
@@ -93,6 +109,7 @@ function addRouteRecord (
     // If users navigate to this route by name, the default child will
     // not be rendered (GH Issue #629)
     if (process.env.NODE_ENV !== 'production') {
+      // 如果父路由有子路由，则父路由不能有 name 属性
       if (route.name && !route.redirect && route.children.some(child => /^\/?$/.test(child.path))) {
         warn(
           false,
@@ -104,6 +121,7 @@ function addRouteRecord (
         )
       }
     }
+    // 递归地添加子路由
     route.children.forEach(child => {
       const childMatchAs = matchAs
         ? cleanPath(`${matchAs}/${child.path}`)
@@ -112,11 +130,13 @@ function addRouteRecord (
     })
   }
 
+  // 处理别名
   if (route.alias !== undefined) {
     const aliases = Array.isArray(route.alias)
       ? route.alias
       : [route.alias]
 
+    // 可能存在多个别名，针对每个别名，添加一条新的路由记录
     aliases.forEach(alias => {
       const aliasRoute = {
         path: alias,
@@ -133,11 +153,13 @@ function addRouteRecord (
     })
   }
 
+  // 将路由记录加入到 pathList、pathMap
   if (!pathMap[record.path]) {
     pathList.push(record.path)
     pathMap[record.path] = record
   }
 
+  // 将路由记录加入到 nameMap
   if (name) {
     if (!nameMap[name]) {
       nameMap[name] = record
@@ -151,9 +173,15 @@ function addRouteRecord (
   }
 }
 
+/**
+ * 将 path 编译成对应的正则表达式（调用 path-to-regexp 库）
+ * @param {*} path 路径
+ * @param {*} pathToRegexpOptions 编译选项
+ */
 function compileRouteRegex (path: string, pathToRegexpOptions: PathToRegexpOptions): RouteRegExp {
   const regex = Regexp(path, [], pathToRegexpOptions)
   if (process.env.NODE_ENV !== 'production') {
+    // 若路径里包含同名的参数名（比如 /:far/bar/:far），则警告
     const keys: any = Object.create(null)
     regex.keys.forEach(key => {
       warn(!keys[key.name], `Duplicate param keys in route with path: "${path}"`)
@@ -163,6 +191,9 @@ function compileRouteRegex (path: string, pathToRegexpOptions: PathToRegexpOptio
   return regex
 }
 
+/**
+ * 标准化 path 的格式（包括处理子路由的 path）
+ */
 function normalizePath (path: string, parent?: RouteRecord, strict?: boolean): string {
   if (!strict) path = path.replace(/\/$/, '')
   if (path[0] === '/') return path

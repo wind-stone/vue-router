@@ -39,19 +39,23 @@ export default {
       return h(cache[name], data, children)
     }
 
+    // 获取匹配的路由记录
     const matched = route.matched[depth]
-    // render empty node if no matched route
+
+    // 若路由记录不存在，渲染空节点
     if (!matched) {
       cache[name] = null
       return h()
     }
 
+    // 获取要渲染的组件
     const component = cache[name] = matched.components[name]
 
     // attach instance registration hook
     // this will be called in the instance's injected lifecycle hooks
     data.registerRouteInstance = (vm, val) => {
       // val could be undefined for unregistration
+      // 绑定/解绑 路由实例
       const current = matched.instances[name]
       if (
         (val && current !== vm) ||
@@ -73,6 +77,7 @@ export default {
       // clone to prevent mutation
       propsToPass = data.props = extend({}, propsToPass)
       // pass non-declared props as attrs
+      // 将未声明的 props 处理成 attrs
       const attrs = data.attrs = data.attrs || {}
       for (const key in propsToPass) {
         if (!component.props || !(key in component.props)) {
@@ -86,6 +91,11 @@ export default {
   }
 }
 
+/**
+ * 解析 props
+ * @param {*} route 路由记录
+ * @param {*} config 路由记录里的 props 属性值
+ */
 function resolveProps (route, config) {
   switch (typeof config) {
     case 'undefined':

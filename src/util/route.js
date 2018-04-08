@@ -5,6 +5,13 @@ import { stringifyQuery } from './query'
 
 const trailingSlashRE = /\/?$/
 
+/**
+ * 基于 路由记录，创建一条 Route
+ * @param {*} record 路由记录
+ * @param {*} location Location 对象
+ * @param {*} redirectedFrom 重定向的来源
+ * @param {*} router 路由器
+ */
 export function createRoute (
   record: ?RouteRecord,
   location: Location,
@@ -70,12 +77,17 @@ function getFullPath (
   return (path || '/') + stringify(query) + hash
 }
 
+/**
+ * 判断是否是同一路由
+ */
 export function isSameRoute (a: Route, b: ?Route): boolean {
   if (b === START) {
+    // 根路由
     return a === b
   } else if (!b) {
     return false
   } else if (a.path && b.path) {
+    // 根据 path 判断
     return (
       a.path.replace(trailingSlashRE, '') === b.path.replace(trailingSlashRE, '') &&
       a.hash === b.hash &&
@@ -93,6 +105,14 @@ export function isSameRoute (a: Route, b: ?Route): boolean {
   }
 }
 
+/**
+ * 判断两个对象是否相等
+ *   1、若其一是 falsy 值，判断全等
+ *   2、对象的 key 的数量要相等
+ *   3、对象的 key 的 value 要相等
+ *      1、若 value 是对象，递归判断其下的 key-value 是否相等
+ *      2、否则，将 value 转换成字符串，判断全等
+ */
 function isObjectEqual (a = {}, b = {}): boolean {
   // handle null value #1566
   if (!a || !b) return a === b

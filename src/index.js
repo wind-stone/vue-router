@@ -33,7 +33,7 @@ export default class VueRouter {
   afterHooks: Array<?AfterNavigationHook>;
 
   constructor (options: RouterOptions = {}) {
-    this.app = null
+    this.app = null // 应用的根实例
     this.apps = []
     this.options = options
     this.beforeHooks = []
@@ -51,6 +51,7 @@ export default class VueRouter {
     }
     this.mode = mode
 
+    // Facade（外观）模式：提供一个方便的高层次接口，能够隐藏其底层的真实复杂性
     switch (mode) {
       case 'history':
         this.history = new HTML5History(this, options.base)
@@ -68,6 +69,9 @@ export default class VueRouter {
     }
   }
 
+  /**
+   * 返回 Route（返回的 Route 可能匹配不到任何路由记录）
+   */
   match (
     raw: RawLocation,
     current?: Route,
@@ -76,10 +80,19 @@ export default class VueRouter {
     return this.matcher.match(raw, current, redirectedFrom)
   }
 
+  /**
+   * 获取当前路由
+   */
   get currentRoute (): ?Route {
     return this.history && this.history.current
   }
 
+  /**
+   * 初始化 router（在根实例的 beforeCreate 钩子里调用）
+   *   1、跳转到当前 hash
+   *   2、添加路由变化监听函数
+   * @param {Vue实例} app 根实例
+   */
   init (app: any /* Vue component instance */) {
     process.env.NODE_ENV !== 'production' && assert(
       install.installed,
@@ -91,6 +104,7 @@ export default class VueRouter {
 
     // main app already initialized.
     if (this.app) {
+      // 只能有一个主根实例
       return
     }
 
@@ -98,10 +112,15 @@ export default class VueRouter {
 
     const history = this.history
 
+    // 初始进入页面的时候，可能不是默认页，需要获取到当前的 hash 并跳转到该 hash 下
     if (history instanceof HTML5History) {
       history.transitionTo(history.getCurrentLocation())
     } else if (history instanceof HashHistory) {
+      // 针对 HashHistory 做特殊处理，修复 vuejs/vue-router#725 这个bug
+      // Reference： https://github.com/vuejs/vue-router/issues/725
+      // 简要来说就是，如果在 beforeEnter 这样的钩子函数中是异步的话，beforeEnter 钩子就会被触发两次，原因是因为在初始化的时候如果此时的 hash 值不是以 / 开头的话就会补上 #/，这个过程会触发 hashchange 事件，所以会再走一次生命周期钩子，也就意味着会再次调用 beforeEnter 钩子函数。
       const setupHashListener = () => {
+        // 跳转成功/失败后，监听 hash 变化
         history.setupListeners()
       }
       history.transitionTo(
@@ -111,6 +130,7 @@ export default class VueRouter {
       )
     }
 
+    // 监听 history 变化，修改根实例的 _route
     history.listen(route => {
       this.apps.forEach((app) => {
         app._route = route
@@ -174,13 +194,16 @@ export default class VueRouter {
     }))
   }
 
+  /**
+   * 解析目标位置
+   */
   resolve (
     to: RawLocation,
-    current?: Route,
-    append?: boolean
+    current?: Route, // 当前默认的路由
+    append?: boolean // 是否在 current 路由上附加路径
   ): {
     location: Location,
-    route: Route,
+    route: Route, // 目标路由
     href: string,
     // for backwards compat
     normalizedTo: Location,
@@ -206,6 +229,9 @@ export default class VueRouter {
     }
   }
 
+  /**
+   * 动态添加路由规则
+   */
   addRoutes (routes: Array<RouteConfig>) {
     this.matcher.addRoutes(routes)
     if (this.history.current !== START) {
@@ -214,6 +240,12 @@ export default class VueRouter {
   }
 }
 
+/**
+ * 注册钩子函数
+ * @param {Array} list 钩子函数数组
+ * @param {Function} fn 新增的钩子函数
+ * @return {Function} 移除钩子的函数
+ */
 function registerHook (list: Array<any>, fn: Function): Function {
   list.push(fn)
   return () => {
